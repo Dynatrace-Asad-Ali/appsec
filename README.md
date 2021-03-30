@@ -14,4 +14,4 @@ The API Token needs to have these minimum permissions:
 #### API v1
 * Access Problem and event feed, metrics and topology
 
-You can [download](https://github.com/dynatrace-oss/PTC-Windchill/releases/latest) the utility for you OS here.
+You can [download](https://github.com/Dynatrace-Asad-Ali/appsec/releases/latest) the utility for you OS here. Unzip the zip file before running the utility.

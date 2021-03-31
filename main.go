@@ -76,12 +76,16 @@ func (p *Processor) Process() error {
 			log.Fatal(err)
 		}
 
-		
-
 		for _, securityProblem := range securityProblemInfoList {
-			//fmt.Println("Vulnerability=" + securityProblem.SecurityProblemId)
-			//fmt.Println("SecurityProblemId=" + securityProblem.Library)
+			if (p.Config.Verbose) {
+				fmt.Println("***************************")
+				fmt.Println("ProblemId=" + securityProblem.SecurityProblemId)
+				fmt.Println("Library=" + securityProblem.Library)
 
+				for _, process := range securityProblem.ProcessInstanceNameList {
+					fmt.Println(process)
+				}
+			}
 			processNames, found := processesByLibrary[securityProblem.Library]
 			if ( !found) {
 				processNames = &ProcessNames{ProcessInstanceNames:[]string{}}
@@ -100,17 +104,16 @@ func (p *Processor) Process() error {
 				if (!found) {
 					processNames.ProcessInstanceNames = append(processNames.ProcessInstanceNames, processName)
 				}
-				//fmt.Println("\t" + processName)
-				//p.analyzeData(securityProblem.VulnerableComponent, processName)
 			}
 		}
 	}
 
 	for key, pByLibrary := range processesByLibrary {
-		fmt.Printf("Library=%s\n", key)
+		fmt.Printf(key + ",")
 		for _, value := range pByLibrary.ProcessInstanceNames {
-			fmt.Printf("\tProcess Name=%s\n", value)
+			fmt.Printf(value + " ")
 		}
+		fmt.Println()
 	}
 	return nil
 	}

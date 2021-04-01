@@ -17,7 +17,7 @@ The API Token needs to have these minimum permissions:
 You can [download](https://github.com/Dynatrace-Asad-Ali/appsec/releases/latest) the utility for you OS here. Unzip the zip file before running the utility.
 
 ### Usage
-To run the utility execute the following command<br />
+To run the utility execute the following command<br /></br >
 <b>appsec_\<version\> -url <Dynatrace tenant url including https://> -token \<token\></b><br />
 <br />
 This will generate output where the data is grouped by vulnerable library and for each library it will list the process names that are using it.

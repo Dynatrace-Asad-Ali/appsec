@@ -69,7 +69,7 @@ func (p *Processor) Process() error {
 	}
 
 	processesByLibrary := ProcessesByLibrary{}
-	//fmt.Println(len(pList))
+	librariesByProcess := LibrariesByProcess{}
 	for _, problemId := range pList {
 		securityProblemInfoList, err := p.getSecurityProblemInfo(problemId)
 		if (err != nil ) {
@@ -86,37 +86,74 @@ func (p *Processor) Process() error {
 					fmt.Println(process)
 				}
 			}
-			processNames, found := processesByLibrary[securityProblem.Library]
-			if ( !found) {
-				processNames = &ProcessNames{ProcessInstanceNames:[]string{}}
-				processesByLibrary[securityProblem.Library] = processNames
-			}
+			if (!p.Config.GroupByProcess) {
+				processNames, found := processesByLibrary[securityProblem.Library]
+				if ( !found) {
+					processNames = &ProcessNames{ProcessInstanceNames:[]string{}}
+					processesByLibrary[securityProblem.Library] = processNames
+				}
 
-			for _, processName := range securityProblem.ProcessInstanceNameList {
-				found = false
-				for _, pName := range processNames.ProcessInstanceNames {
-					if pName == processName {
-						found = true
-						break
+				for _, processName := range securityProblem.ProcessInstanceNameList {
+					found = false
+					for _, pName := range processNames.ProcessInstanceNames {
+						if pName == processName {
+							found = true
+							break
+						}
+					}
+
+					if (!found) {
+						processNames.ProcessInstanceNames = append(processNames.ProcessInstanceNames, processName)
 					}
 				}
-
-				if (!found) {
-					processNames.ProcessInstanceNames = append(processNames.ProcessInstanceNames, processName)
+			} else {
+				libraryName := securityProblem.Library
+				for _, processName := range securityProblem.ProcessInstanceNameList {
+					lNames, found := librariesByProcess[processName]
+					if (!found) {
+						librariesByProcess[processName] = &Libraries{LibraryNames:[]string{libraryName}}
+					} else {
+						found = false
+						for _, lName := range lNames.LibraryNames {
+							if lName == libraryName {
+								found = true
+								break
+							}
+						}
+						if (!found) {
+							lNames.LibraryNames = append(lNames.LibraryNames, libraryName)
+						}
+					}
 				}
 			}
 		}
 	}
 
-	for key, pByLibrary := range processesByLibrary {
-		fmt.Printf(key + ",")
-		for _, value := range pByLibrary.ProcessInstanceNames {
-			fmt.Printf(value + " ")
+	if (!p.Config.GroupByProcess) {
+		for key, pByLibrary := range processesByLibrary {
+			fmt.Printf(key + "\t")
+			for idx, value := range pByLibrary.ProcessInstanceNames {
+				fmt.Printf(value)
+				if (idx < len(pByLibrary.ProcessInstanceNames)-1) {
+					fmt.Printf(",")
+				}
+			}
+			fmt.Println()
 		}
-		fmt.Println()
+	} else {
+		for key, lbyProcess := range librariesByProcess {
+			fmt.Printf(key + "\t")
+			for idx, value := range lbyProcess.LibraryNames {
+				fmt.Printf(value)
+				if (idx < len(lbyProcess.LibraryNames)-1) {
+					fmt.Printf(",")
+				}
+			}
+			fmt.Println()
+		}
 	}
 	return nil
-	}
+}
 
 func (p *Processor) getSecurityProblemList(endpointName string) ([]string, error) {
 	var err error
@@ -330,6 +367,7 @@ type Config struct {
 	APIToken string
 	Verbose  bool
 	Debug    bool
+	GroupByProcess bool
 }
 
 // Parse reads configuration from arguments and environment
@@ -338,10 +376,11 @@ func (c *Config) Parse() *Config {
 	flag.StringVar(&c.APIToken, "token", "", "the API token to use for uploading configuration")
 	flag.BoolVar(&c.Verbose, "verbose", false, "verbose logging")
 	flag.BoolVar(&c.Debug, "debug", false, "prints out HTTP traffic")
+	flag.BoolVar(&c.GroupByProcess, "groupByProcess", false, "group the output by process name and show all the vulnerable libraries in it")
 	flag.Parse()
 	c.URL = c.Lookup("DT_URL", c.URL)
 	c.APIToken = c.Lookup("DT_TOKEN", c.APIToken)
-	if len(c.URL) == 0 || len(c.APIToken) == 0 {
+	if len(c.URL) == 0 || len(c.APIToken) == 0  {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -357,14 +396,6 @@ func (c *Config) Lookup(envVar string, current string) string {
 		return v
 	}
 	return current
-}
-
-func isSupportedFile(fileInfo os.FileInfo) bool {
-	if fileInfo.IsDir() {
-		return false
-	}
-	name := fileInfo.Name()
-	return strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".zip")
 }
 
 /********************* VARIABLE SUBSTITUTION *********************/
@@ -432,6 +463,13 @@ type SecurityProblemInfo struct {
 	Library string
 	ProcessInstanceIdList []string
 	ProcessInstanceNameList []string
+}
+
+
+type LibrariesByProcess map[string]*Libraries
+
+type Libraries struct {
+	LibraryNames []string
 }
 
 type ProcessNames struct {

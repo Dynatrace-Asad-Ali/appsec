@@ -21,11 +21,11 @@ To run the utility execute the following command<br /></br >
 <b>appsec_\<version\> -url <Dynatrace tenant url including https://> -token \<token\></b><br />
 <br />
 This will generate output where the data is grouped by vulnerable library and for each library it will list the process names that are using it.
-The utility also allows you to group the data by process name instead of vulnerable library. To get the data grouped by process name, run the following command<br />
+The utility also allows you to group the data by process name instead of vulnerable library. To get the data grouped by process name, run the following command<br /><br >
 <b>appsec_\<version\> -url <Dynatrace tenant url including https://> -token \<token\> -groupByProcess </b><br />
 <br />
 
-The utility also allow you to pass the Dynatrace url and the token as an environment variable instead of providing these values at command line. To use the environment variables instead, please set these 2 environment variables before running the command:
+The utility also allows you to pass the Dynatrace url and the token as an environment variable instead of providing these values at command line. To use the environment variables instead, please set these 2 environment variables before running the command:
 * DT_URL
 * DT_TOKEN
 

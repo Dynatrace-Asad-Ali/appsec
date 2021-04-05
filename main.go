@@ -33,6 +33,7 @@ const enforceLeadingDigits = true
 var fileNameFormat = regexp.MustCompile("(^\\d+[-].+)")
 
 var endpoints = Endpoints{
+	"SecurityProblemsAll":              "/api/v2/securityProblems?pageSize=500",
 	"SecurityProblems":              "/api/v2/securityProblems",
 	"Processes": "/api/v1/entity/infrastructure/processes",
 }
@@ -47,6 +48,7 @@ func main() {
 	processor := &Processor{
 		Config: new(Config).Parse(),
 		Client: client,
+		ProcessInstanceCache: &ProcessInstanceCache{},
 	}
 	if err = processor.Process(); err != nil {
 		panic(err)
@@ -57,25 +59,32 @@ func main() {
 type Processor struct {
 	Config *Config
 	Client *http.Client
+	ProcessInstanceCache *ProcessInstanceCache
 }
 
 // Process has no documentation
 func (p *Processor) Process() error {
 	var err error
-	pList, err := p.getSecurityProblemList("SecurityProblems")
+	pList, err := p.getSecurityProblemList("SecurityProblemsAll")
 
+	if (p.Config.Verbose) {
+		fmt.Printf("Total number of vulnerabilities=%d\n", len(pList))
+	}
 	if ( err != nil) {
 		panic(err)
 	}
 
 	processesByLibrary := ProcessesByLibrary{}
 	librariesByProcess := LibrariesByProcess{}
-	for _, problemId := range pList {
+	for elem, problemId := range pList {
 		securityProblemInfoList, err := p.getSecurityProblemInfo(problemId)
 		if (err != nil ) {
 			log.Fatal(err)
 		}
 
+		if (p.Config.Verbose) {
+			fmt.Printf("%d. %s\n", elem, problemId)
+		}
 		for _, securityProblem := range securityProblemInfoList {
 			if (p.Config.Verbose) {
 				fmt.Println("***************************")
@@ -127,6 +136,16 @@ func (p *Processor) Process() error {
 				}
 			}
 		}
+	}
+
+	if (p.Config.Verbose) {
+		fmt.Println("===========================================")
+		fmt.Println("Process Cache Entries")
+		fmt.Println("===========================================")
+		for processId, name := range *p.ProcessInstanceCache {
+			fmt.Printf("%s: %s\n", processId, *name)
+		}
+		fmt.Println("===========================================")
 	}
 
 	if (!p.Config.GroupByProcess) {
@@ -216,9 +235,9 @@ func (p *Processor) setupHTTPRequest(method string, endpointURL string) (*http.R
 	}
 	req.Header.Set("accept", "application/json; charset=utf-8")
 
-	if p.Config.Debug {
+	/*if p.Config.Debug {
 		log.Println(fmt.Sprintf("  [HTTP] %s: %s", "Authorization", "Api-Token "+p.Config.APIToken))
-	}
+	}*/
 	req.Header.Add("Authorization", "Api-Token "+p.Config.APIToken)
 
 	return req, nil
@@ -308,22 +327,26 @@ func (p *Processor) getProcessInstanceData(list []*SecurityProblemInfo) error{
 	for index, info := range list {
 		processes := info.ProcessInstanceIdList
 		var processNames []string
+
 		for _, process := range processes {
-			endpointURL := p.Config.URL + endpoints["Processes"] + "/" + process
-			if req, err = p.setupHTTPRequest("GET", endpointURL); err != nil {
-				return err
-			}
-			var resp *http.Response
-			if resp, err = p.Client.Do(req); err != nil {
-				return err
-			}
-			defer resp.Body.Close()
+			processName, found := p.checkProcessCache(process)
+			if (!found) {
+				endpointURL := p.Config.URL + endpoints["Processes"] + "/" + process
+				if req, err = p.setupHTTPRequest("GET", endpointURL); err != nil {
+					return err
+				}
+				var resp *http.Response
+				if resp, err = p.Client.Do(req); err != nil {
+					return err
+				}
+				defer resp.Body.Close()
 
-			processName, err := p.getProcessData(resp)
-			if ( err != nil) {
-				return  err
+				processName, err = p.getProcessData(resp)
+				if ( err != nil) {
+					return  err
+				}
+				(*p.ProcessInstanceCache)[process] = &processName
 			}
-
 			processNames = append(processNames, processName)
 		}
 		info.ProcessInstanceNameList = processNames
@@ -357,6 +380,14 @@ func (p *Processor) getProcessData(resp *http.Response) (string, error) {
 
 	}
 	return processEnvelope.DisplayName, nil
+}
+
+func (p *Processor) checkProcessCache(processId string) (string, bool) {
+	pName, found := (*p.ProcessInstanceCache)[processId]
+	if ( found) {
+		return *pName, found
+	}
+	return "", found
 }
 
 /********************* CONFIGURATION *********************/
@@ -397,6 +428,7 @@ func (c *Config) Lookup(envVar string, current string) string {
 	}
 	return current
 }
+
 
 /********************* VARIABLE SUBSTITUTION *********************/
 type variables map[string]string
@@ -476,6 +508,8 @@ type ProcessNames struct {
 	ProcessInstanceNames []string
 }
 type ProcessesByLibrary map[string]*ProcessNames
+
+type ProcessInstanceCache map[string]*string
 
 /********************* API PAYLOAD *********************/
 

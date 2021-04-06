@@ -150,7 +150,7 @@ func (p *Processor) Process() error {
 
 	if (!p.Config.GroupByProcess) {
 		for key, pByLibrary := range processesByLibrary {
-			fmt.Printf(key + "\t")
+			fmt.Printf(key + ",")
 			for idx, value := range pByLibrary.ProcessInstanceNames {
 				fmt.Printf(value)
 				if (idx < len(pByLibrary.ProcessInstanceNames)-1) {
@@ -161,7 +161,7 @@ func (p *Processor) Process() error {
 		}
 	} else {
 		for key, lbyProcess := range librariesByProcess {
-			fmt.Printf(key + "\t")
+			fmt.Printf(key + ",")
 			for idx, value := range lbyProcess.LibraryNames {
 				fmt.Printf(value)
 				if (idx < len(lbyProcess.LibraryNames)-1) {
@@ -379,7 +379,9 @@ func (p *Processor) getProcessData(resp *http.Response) (string, error) {
 		log.Println(fmt.Sprintf("  id: %s", processEnvelope.DisplayName))
 
 	}
-	return processEnvelope.DisplayName, nil
+	pName := processEnvelope.DisplayName
+	pNameRep := strings.ReplaceAll(pName, "/", "\\/")
+	return pNameRep, nil
 }
 
 func (p *Processor) checkProcessCache(processId string) (string, bool) {
